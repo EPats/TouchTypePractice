@@ -72,14 +72,44 @@ def save_words_list_with_update(words_list: list, language: str, save_path: str)
     save_to_file(json.dumps(existing_data, indent=4), save_path)
 
 
-def generate_exercise(number_of_words: int, top_n_words: int, language: str) -> list:
+MAX_CHARACTERS_PER_LINE = 200
+
+
+def generate_exercise(number_of_lines: int, top_n_words: int, language: str, ignore_characters_list: list = None) -> list:
     words_dict = load_if_exists_else_blank('filtered_keywords.json')
     if language not in words_dict:
         return []
-    language_top_words = words_dict[language]
-    top_words = language_top_words[:top_n_words]
-    return [random.choice(top_words) for _ in range(number_of_words)]
 
+    if ignore_characters_list is None:
+        ignore_characters_list = []
+
+    cleaned_words = get_word_list(words_dict[language][:top_n_words], ignore_characters_list)
+
+    if not cleaned_words:
+        return []
+
+    generated_exercise = []
+    new_line = []
+    char_count = 0
+
+    while len(generated_exercise) < number_of_lines:
+
+        new_word = random.choice(cleaned_words)
+
+        if char_count + len(new_word) + 1 > MAX_CHARACTERS_PER_LINE:
+            generated_exercise.append(new_line)
+            new_line = [new_word]
+            char_count = len(new_word)
+        else:
+            new_line.append(new_word)
+            char_count += len(new_word) + 1
+
+    return generated_exercise
+
+
+def get_word_list(words: list, ignore_list: list) -> list:
+    ignore_set = set(ignore_list)
+    return [word for word in words if not any(ignored_str in word for ignored_str in ignore_set)]
 
 
 if __name__ == '__main__':
@@ -89,6 +119,12 @@ if __name__ == '__main__':
     # save_words_list_with_update(words, 'english', 'raw_keywords.json')
     # save_words_list_with_update(get_single_words_from_list(words, 2), 'english', 'filtered_keywords.json')
     for i in range(10):
-        print(' '.join(generate_exercise(50, (i + 1) * 30, 'english')))
+        print('----')
+        print(f'Top {(i + 1) * 100} words')
+        print('----')
+        exercise = generate_exercise(10, (i + 1) * 100, 'english', ['\'', '.', '-', '/', 'a', 'e', 'th'])
+        for line in exercise:
+            print(' '.join(line))
+
         print('----')
 

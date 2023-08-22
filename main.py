@@ -6,7 +6,7 @@ import random
 
 import tkinter as tk
 import time
-
+from functools import partial
 
 WORD_PATTERN = re.compile(r'(?<=\|).*?(?=])')
 NON_ALPHA_PATTERN = re.compile(r'[^A-Za-z]')
@@ -128,7 +128,7 @@ def reset_test(result_display):
     result_display.config(text="Your result will be displayed here...")
 
 
-def calculate_result(result_display, event):
+def calculate_result(event, result_display):
     end_time = time.time()
     elapsed_time = end_time - start_time
     typed_text = user_input.get(1.0, tk.END).strip()
@@ -137,18 +137,26 @@ def calculate_result(result_display, event):
     result_display.config(text=f"Your speed is: {wpm:.2f} WPM")
 
 
-def update_position(event):
+def update_position(event, text_widget):
+    # Get the typed content
     typed = user_input.get()
-    remaining = text_to_copy[len(typed):]
 
-    # Here we can use different styles to highlight the position.
-    # For simplicity, I'm using uppercase for the next character to type.
-    if remaining:
-        next_char = remaining[0].upper()
-        remaining = next_char + remaining[1:]
+    text_widget.tag_remove("highlight", "1.0", tk.END)
 
-    updated_text = typed + remaining
-    text_label.config(text=updated_text)
+    if len(typed) < len(text_to_copy):
+        if event.keysym == 'BackSpace':
+            if typed:
+                position = f"1.{len(typed) - 1}"
+                text_widget.tag_remove('mistyped', position, f"{position} + 1c")
+            position = f"1.{len(typed) - 1}"
+            text_widget.tag_add("highlight", position, f"{position} + 1c")
+        else:
+            if event.char != text_to_copy[len(typed)]:
+                position = f"1.{len(typed)}"
+                text_widget.tag_add('mistyped', position, f"{position} + 1c")
+            position = f"1.{len(typed) + 1}"
+            text_widget.tag_add("highlight", position, f"{position} + 1c")
+
 
 
 if __name__ == '__main__':
@@ -176,12 +184,19 @@ if __name__ == '__main__':
 
     # Label to display the text-to-copy
     text_to_copy = f'{" ".join(exercise[0])}\n{" ".join(exercise[1])}'
-    text_label = tk.Label(root, text=text_to_copy, justify='left')
-    text_label.pack(pady=20)
+    # Text widget for displaying the text-to-copy
+    text_widget = tk.Text(root, height=2, width=110)
+    text_widget.insert("1.0", text_to_copy)
+    text_widget.config(state=tk.DISABLED)  # make it read-only
+    text_widget.pack(pady=20)
 
-    # Entry widget for the user to type into
+    # Style for highlighting
+    text_widget.tag_configure("highlight", background="yellow")
+    text_widget.tag_configure("mistyped", foreground="red")
+    text_widget.tag_add("highlight", '1.0', '1.0 + 1c')
+
+    # Entry for the user to type into
     user_input = tk.Entry(root, width=50)
     user_input.pack(pady=20)
-
-    user_input.bind('<Key>', update_position)
+    user_input.bind('<Key>', partial(update_position, text_widget=text_widget))
     root.mainloop()

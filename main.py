@@ -123,12 +123,12 @@ def start_test():
     # You can also change the state of the user_input text widget to 'normal' or 'disabled' as needed.
     user_input.config(state=tk.NORMAL)
 
-def reset_test():
+def reset_test(result_display):
     user_input.delete(1.0, tk.END)
     result_display.config(text="Your result will be displayed here...")
 
 
-def calculate_result(event):
+def calculate_result(result_display, event):
     end_time = time.time()
     elapsed_time = end_time - start_time
     typed_text = user_input.get(1.0, tk.END).strip()
@@ -136,6 +136,19 @@ def calculate_result(event):
     # ... You'll also want to calculate accuracy here
     result_display.config(text=f"Your speed is: {wpm:.2f} WPM")
 
+
+def update_position(event):
+    typed = user_input.get()
+    remaining = text_to_copy[len(typed):]
+
+    # Here we can use different styles to highlight the position.
+    # For simplicity, I'm using uppercase for the next character to type.
+    if remaining:
+        next_char = remaining[0].upper()
+        remaining = next_char + remaining[1:]
+
+    updated_text = typed + remaining
+    text_label.config(text=updated_text)
 
 
 if __name__ == '__main__':
@@ -157,25 +170,18 @@ if __name__ == '__main__':
 
     exercise = generate_exercise(10, 200, 'english', ['\'', '.', '-', '/'])
 
-    root = tk.Tk()
-    root.title("Typing Speed Test")
-
     # root.mainloop()
-    test_text = tk.Label(root, text=f"{' '.join(exercise[0])}\n{' '.join(exercise[1])}", justify='left')
-    test_text.pack()
+    root = tk.Tk()
+    root.title("Typing Test")
 
-    user_input = tk.Text(root, height=5, width=40)
-    user_input.pack()
+    # Label to display the text-to-copy
+    text_to_copy = f'{" ".join(exercise[0])}\n{" ".join(exercise[1])}'
+    text_label = tk.Label(root, text=text_to_copy, justify='left')
+    text_label.pack(pady=20)
 
-    start_button = tk.Button(root, text="Start", command=start_test)
-    start_button.pack()
+    # Entry widget for the user to type into
+    user_input = tk.Entry(root, width=50)
+    user_input.pack(pady=20)
 
-    reset_button = tk.Button(root, text="Reset", command=reset_test)
-    reset_button.pack()
-
-    result_display = tk.Label(root, text="Your result will be displayed here...")
-    result_display.pack()
-    user_input.bind('<Return>', calculate_result)
-
+    user_input.bind('<Key>', update_position)
     root.mainloop()
-

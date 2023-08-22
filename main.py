@@ -4,6 +4,9 @@ import json
 import re
 import random
 
+import tkinter as tk
+import time
+
 
 WORD_PATTERN = re.compile(r'(?<=\|).*?(?=])')
 NON_ALPHA_PATTERN = re.compile(r'[^A-Za-z]')
@@ -72,7 +75,7 @@ def save_words_list_with_update(words_list: list, language: str, save_path: str)
     save_to_file(json.dumps(existing_data, indent=4), save_path)
 
 
-MAX_CHARACTERS_PER_LINE = 200
+MAX_CHARACTERS_PER_LINE = 100
 
 
 def generate_exercise(number_of_lines: int, top_n_words: int, language: str, ignore_characters_list: list = None) -> list:
@@ -112,19 +115,67 @@ def get_word_list(words: list, ignore_list: list) -> list:
     return [word for word in words if not any(ignored_str in word for ignored_str in ignore_set)]
 
 
+start_time = None
+
+def start_test():
+    global start_time
+    start_time = time.time()
+    # You can also change the state of the user_input text widget to 'normal' or 'disabled' as needed.
+    user_input.config(state=tk.NORMAL)
+
+def reset_test():
+    user_input.delete(1.0, tk.END)
+    result_display.config(text="Your result will be displayed here...")
+
+
+def calculate_result(event):
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    typed_text = user_input.get(1.0, tk.END).strip()
+    wpm = (len(typed_text.split()) / elapsed_time) * 60
+    # ... You'll also want to calculate accuracy here
+    result_display.config(text=f"Your speed is: {wpm:.2f} WPM")
+
+
+
 if __name__ == '__main__':
     # url = 'https://en.wiktionary.org/w/api.php?action=query&prop=revisions&titles=Wiktionary:Frequency_lists/English' \
     #       '/Wikipedia_(2016)&rvslots=*&rvprop=content&formatversion=2'
     # words = fetch_top_words_from_wiki(url)
     # save_words_list_with_update(words, 'english', 'raw_keywords.json')
     # save_words_list_with_update(get_single_words_from_list(words, 2), 'english', 'filtered_keywords.json')
-    for i in range(10):
-        print('----')
-        print(f'Top {(i + 1) * 100} words')
-        print('----')
-        exercise = generate_exercise(10, (i + 1) * 100, 'english', ['\'', '.', '-', '/', 'a', 'e', 'th'])
-        for line in exercise:
-            print(' '.join(line))
 
-        print('----')
+    # for i in range(10):
+    #     print('----')
+    #     print(f'Top {(i + 1) * 100} words')
+    #     print('----')
+    #     exercise = generate_exercise(10, (i + 1) * 100, 'english', ['\'', '.', '-', '/', 'a', 'e', 'th'])
+    #     for line in exercise:
+    #         print(' '.join(line))
+    #
+    #     print('----')
+
+    exercise = generate_exercise(10, 200, 'english', ['\'', '.', '-', '/'])
+
+    root = tk.Tk()
+    root.title("Typing Speed Test")
+
+    # root.mainloop()
+    test_text = tk.Label(root, text=f"{' '.join(exercise[0])}\n{' '.join(exercise[1])}", justify='left')
+    test_text.pack()
+
+    user_input = tk.Text(root, height=5, width=40)
+    user_input.pack()
+
+    start_button = tk.Button(root, text="Start", command=start_test)
+    start_button.pack()
+
+    reset_button = tk.Button(root, text="Reset", command=reset_test)
+    reset_button.pack()
+
+    result_display = tk.Label(root, text="Your result will be displayed here...")
+    result_display.pack()
+    user_input.bind('<Return>', calculate_result)
+
+    root.mainloop()
 

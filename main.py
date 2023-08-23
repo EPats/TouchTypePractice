@@ -152,6 +152,16 @@ def update_position(event, text_widget, exercise, tracker, curr_line):
                 text_widget.tag_add("mistyped", f"1.{word_start}", f"1.{word_end}")
         user_input.delete(0, tk.END)
         typed = ''
+    elif (typed_text := typed + event.char).strip():
+        word = exercise[len(tracker)][len(curr_line)]
+        spelling = typed_text.strip()
+        correct_spelling_so_far = word[:len(spelling)] == spelling
+        word_start = 0 if len(curr_line) == 0 else len(' '.join(exercise[len(tracker)][:len(curr_line)])) + 1
+        word_end = word_start + len(word)
+        if correct_spelling_so_far:
+            text_widget.tag_remove("mistyped", f"1.{word_start}", f"1.{word_end}")
+        else:
+            text_widget.tag_add("mistyped", f"1.{word_start}", f"1.{word_end}")
 
     original_words = text_to_copy.split()
     char_count = 0

@@ -137,26 +137,33 @@ def calculate_result(event, result_display):
     result_display.config(text=f"Your speed is: {wpm:.2f} WPM")
 
 
-def update_position(event, text_widget):
-    # Get the typed content
+def update_position(event, text_widget, exercise, tracker, curr_line):
     typed = user_input.get()
 
-    text_widget.tag_remove("highlight", "1.0", tk.END)
+    if event.keysym == 'space':
+        if typed.strip():
+            word = exercise[len(tracker)][len(curr_line)]
+            spelling = typed.strip()
+            correct_spelling = word == spelling
+            curr_line.append({'word': word, 'spelling': spelling, 'correct': correct_spelling})
+            if not correct_spelling:
+                word_start = len(' '.join(exercise[len(tracker)][:len(curr_line) - 1])) + 1
+                word_end = word_start + len(word)
+                text_widget.tag_add("mistyped", f"1.{word_start}", f"1.{word_end}")
+        user_input.delete(0, tk.END)
+        typed = ''
 
-    if len(typed) < len(text_to_copy):
-        if event.keysym == 'BackSpace':
-            if typed:
-                position = f"1.{len(typed) - 1}"
-                text_widget.tag_remove('mistyped', position, f"{position} + 1c")
-            position = f"1.{len(typed) - 1}"
-            text_widget.tag_add("highlight", position, f"{position} + 1c")
-        else:
-            if event.char != text_to_copy[len(typed)]:
-                position = f"1.{len(typed)}"
-                text_widget.tag_add('mistyped', position, f"{position} + 1c")
-            position = f"1.{len(typed) + 1}"
-            text_widget.tag_add("highlight", position, f"{position} + 1c")
+    original_words = text_to_copy.split()
+    char_count = 0
 
+    # for i in range(word_index[0]):
+    #     char_count += len(original_words[i]) + 1  # +1 for the space
+    #
+    # if word_index[0] < len(original_words):
+    #     next_word = original_words[word_index[0]]
+    #     word_start = char_count
+    #     word_end = char_count + len(next_word)
+    #     text_widget.tag_add("highlight", f"1.{word_start}", f"1.{word_end}")
 
 
 if __name__ == '__main__':
@@ -193,10 +200,12 @@ if __name__ == '__main__':
     # Style for highlighting
     text_widget.tag_configure("highlight", background="yellow")
     text_widget.tag_configure("mistyped", foreground="red")
-    text_widget.tag_add("highlight", '1.0', '1.0 + 1c')
+    text_widget.tag_add("highlight", '1.0', f'1.{len(exercise[0][0])}')
 
+    tracker = []
+    current_line = []
     # Entry for the user to type into
     user_input = tk.Entry(root, width=50)
     user_input.pack(pady=20)
-    user_input.bind('<Key>', partial(update_position, text_widget=text_widget))
+    user_input.bind('<Key>', partial(update_position, text_widget=text_widget, exercise=exercise, tracker=tracker, curr_line=current_line))
     root.mainloop()

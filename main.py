@@ -7,6 +7,7 @@ import random
 import tkinter as tk
 import time
 from functools import partial
+import copy
 
 WORD_PATTERN = re.compile(r'(?<=\|).*?(?=])')
 NON_ALPHA_PATTERN = re.compile(r'[^A-Za-z]')
@@ -141,6 +142,7 @@ def update_position(event, text_widget, exercise, tracker, curr_line):
     typed = user_input.get()
 
     if event.keysym == 'space':
+        text_widget.tag_remove("highlight", "1.0", tk.END)
         if typed.strip():
             word = exercise[len(tracker)][len(curr_line)]
             spelling = typed.strip()
@@ -150,6 +152,10 @@ def update_position(event, text_widget, exercise, tracker, curr_line):
                 word_start = len(' '.join(exercise[len(tracker)][:len(curr_line) - 1])) + 1
                 word_end = word_start + len(word)
                 text_widget.tag_add("mistyped", f"1.{word_start}", f"1.{word_end}")
+            word = exercise[len(tracker)][len(curr_line)]
+            word_start = len(' '.join(exercise[len(tracker)][:len(curr_line)])) + 1
+            word_end = word_start + len(word)
+            text_widget.tag_add("highlight", f"1.{word_start}", f"1.{word_end}")
         user_input.delete(0, tk.END)
         typed = ''
     elif (typed_text := typed + event.char).strip():
@@ -163,8 +169,17 @@ def update_position(event, text_widget, exercise, tracker, curr_line):
         else:
             text_widget.tag_add("mistyped", f"1.{word_start}", f"1.{word_end}")
 
+    if len(curr_line) == len(exercise[len(tracker)]):
+        text_widget.config(state=tk.NORMAL)
+        text_widget.delete('1.0', '2.0')
+        text_widget.insert(tk.END, "\n" + " ".join(exercise[len(tracker) + 1]))  # Add the new line at the end
+        text_widget.config(state=tk.DISABLED)
+        tracker.append(copy.deepcopy(curr_line))
+        curr_line.clear()
     original_words = text_to_copy.split()
     char_count = 0
+
+
 
     # for i in range(word_index[0]):
     #     char_count += len(original_words[i]) + 1  # +1 for the space

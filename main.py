@@ -1,3 +1,5 @@
+import string
+
 from bs4 import BeautifulSoup
 import requests
 import json
@@ -12,6 +14,10 @@ import copy
 WORD_PATTERN = re.compile(r'(?<=\|).*?(?=])')
 NON_ALPHA_PATTERN = re.compile(r'[^A-Za-z]')
 
+FIRST_LINE = '1.0'
+SECOND_LINE = '2.0'
+HIGHLIGHT_TAG = 'highlight'
+MISTYPED_TAG = 'mistyped'
 
 def load_if_exists_else_blank(path: str) -> dict:
     try:
@@ -118,11 +124,13 @@ def get_word_list(words: list, ignore_list: list) -> list:
 
 start_time = None
 
+
 def start_test():
     global start_time
     start_time = time.time()
     # You can also change the state of the user_input text widget to 'normal' or 'disabled' as needed.
     user_input.config(state=tk.NORMAL)
+
 
 def reset_test(result_display):
     user_input.delete(1.0, tk.END)
@@ -138,57 +146,67 @@ def calculate_result(event, result_display):
     result_display.config(text=f"Your speed is: {wpm:.2f} WPM")
 
 
-def update_position(event, text_widget, exercise, tracker, curr_line):
-    typed = user_input.get()
+def add_tag(widget, tag_name, start_index, end_index):
+    widget.tag_add(tag_name, f'1.{start_index}', f'1.{end_index}')
+
+
+def remove_tag(widget, tag_name, start_index, end_index):
+    widget.tag_remove(tag_name, f'1.{start_index}', f'1.{end_index}')
+
+
+def on_key_release(event, text_widget, exercise, tracker, curr_line):
+    typed = user_input.get().strip()
+
+    curr_line = exercise[tracker['curr_line_index']]
+    curr_word = curr_line[tracker['curr_word_index']]
+
+    if not typed:
+        start_index = 0 if tracker['curr_word_index'] == 0 else len(
+            ' '.join(curr_line[:tracker['curr_word_index']])) + 1
+        end_index = start_index + len(curr_word)
+        remove_tag(text_widget, MISTYPED_TAG, start_index, end_index)
+        user_input.delete(0, tk.END)
+        return
 
     if event.keysym == 'space':
-        text_widget.tag_remove("highlight", "1.0", tk.END)
-        if typed.strip():
-            word = exercise[len(tracker)][len(curr_line)]
-            spelling = typed.strip()
-            correct_spelling = word == spelling
-            curr_line.append({'word': word, 'spelling': spelling, 'correct': correct_spelling})
-            if not correct_spelling:
-                word_start = len(' '.join(exercise[len(tracker)][:len(curr_line) - 1])) + 1
-                word_end = word_start + len(word)
-                text_widget.tag_add("mistyped", f"1.{word_start}", f"1.{word_end}")
-            word = exercise[len(tracker)][len(curr_line)]
-            word_start = len(' '.join(exercise[len(tracker)][:len(curr_line)])) + 1
-            word_end = word_start + len(word)
-            text_widget.tag_add("highlight", f"1.{word_start}", f"1.{word_end}")
-        user_input.delete(0, tk.END)
-        typed = ''
-    elif (typed_text := typed + event.char).strip():
-        word = exercise[len(tracker)][len(curr_line)]
-        spelling = typed_text.strip()
-        correct_spelling_so_far = word[:len(spelling)] == spelling
-        word_start = 0 if len(curr_line) == 0 else len(' '.join(exercise[len(tracker)][:len(curr_line)])) + 1
-        word_end = word_start + len(word)
-        if correct_spelling_so_far:
-            text_widget.tag_remove("mistyped", f"1.{word_start}", f"1.{word_end}")
+        is_correct = (typed == curr_word)
+        tracker['typed_words'].append({'word': curr_word, 'spelling': typed, 'correct': is_correct})
+
+        if (tracker['curr_word_index'] + 1) >= len(curr_line):
+            text_widget.config(state=tk.NORMAL)
+            text_widget.delete(FIRST_LINE, SECOND_LINE)
+            tracker['curr_line_index'] += 1
+            tracker['curr_word_index'] = 0
+            new_line = exercise[tracker['curr_line_index'] + 1]
+            text_widget.insert(tk.END, '\n' + ' '.join(new_line))
+            text_widget.config(state=tk.DISABLED)
+            highlight_start = 0
+            highlight_end = len(exercise[tracker['curr_line_index']][0])
         else:
-            text_widget.tag_add("mistyped", f"1.{word_start}", f"1.{word_end}")
+            error_start = 0 if tracker['curr_word_index'] == 0 else len(' '.join(curr_line[:tracker['curr_word_index']])) + 1
+            error_end = error_start + len(curr_word)
+            if is_correct:
+                remove_tag(text_widget, MISTYPED_TAG, error_start, error_end)
+            else:
+                add_tag(text_widget, MISTYPED_TAG, error_start, error_end)
 
-    if len(curr_line) == len(exercise[len(tracker)]):
-        text_widget.config(state=tk.NORMAL)
-        text_widget.delete('1.0', '2.0')
-        text_widget.insert(tk.END, "\n" + " ".join(exercise[len(tracker) + 1]))  # Add the new line at the end
-        text_widget.config(state=tk.DISABLED)
-        tracker.append(copy.deepcopy(curr_line))
-        curr_line.clear()
-    original_words = text_to_copy.split()
-    char_count = 0
+            tracker['curr_word_index'] += 1
+            highlight_start = len(' '.join(curr_line[:tracker['curr_word_index']])) + 1
+            highlight_end = highlight_start + len(curr_line[tracker['curr_word_index']])
 
+        text_widget.tag_remove(HIGHLIGHT_TAG, '1.0', tk.END)
+        add_tag(text_widget, HIGHLIGHT_TAG, highlight_start, highlight_end)
+        user_input.delete(0, tk.END)
+        return
 
+    is_correct_so_far = (typed == curr_word[:len(typed)])
+    start_index = 0 if tracker['curr_word_index'] == 0 else len(' '.join(curr_line[:tracker['curr_word_index']])) + 1
+    end_index = start_index + len(curr_word)
+    if is_correct_so_far:
+        remove_tag(text_widget, MISTYPED_TAG, start_index, end_index)
+    else:
+        add_tag(text_widget, MISTYPED_TAG, start_index, end_index)
 
-    # for i in range(word_index[0]):
-    #     char_count += len(original_words[i]) + 1  # +1 for the space
-    #
-    # if word_index[0] < len(original_words):
-    #     next_word = original_words[word_index[0]]
-    #     word_start = char_count
-    #     word_end = char_count + len(next_word)
-    #     text_widget.tag_add("highlight", f"1.{word_start}", f"1.{word_end}")
 
 
 if __name__ == '__main__':
@@ -228,9 +246,10 @@ if __name__ == '__main__':
     text_widget.tag_add("highlight", '1.0', f'1.{len(exercise[0][0])}')
 
     tracker = []
+    tracker_2 = {'curr_line_index': 0, 'curr_word_index': 0, 'typed_words': []}
     current_line = []
     # Entry for the user to type into
     user_input = tk.Entry(root, width=50)
     user_input.pack(pady=20)
-    user_input.bind('<Key>', partial(update_position, text_widget=text_widget, exercise=exercise, tracker=tracker, curr_line=current_line))
+    user_input.bind('<KeyRelease>', partial(on_key_release, text_widget=text_widget, exercise=exercise, tracker=tracker_2, curr_line=current_line))
     root.mainloop()

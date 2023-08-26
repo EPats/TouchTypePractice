@@ -154,7 +154,7 @@ def remove_tag(widget, tag_name, start_index, end_index):
     widget.tag_remove(tag_name, f'1.{start_index}', f'1.{end_index}')
 
 
-def on_key_release(event, text_widget, exercise, tracker, curr_line):
+def on_key_release(event, text_widget, exercise, tracker):
     typed = user_input.get().strip()
 
     curr_line = exercise[tracker['curr_line_index']]
@@ -245,11 +245,10 @@ if __name__ == '__main__':
     text_widget.tag_configure("mistyped", foreground="red")
     text_widget.tag_add("highlight", '1.0', f'1.{len(exercise[0][0])}')
 
-    tracker = []
-    tracker_2 = {'curr_line_index': 0, 'curr_word_index': 0, 'typed_words': []}
+    tracker = {'curr_line_index': 0, 'curr_word_index': 0, 'typed_words': []}
     current_line = []
     # Entry for the user to type into
     user_input = tk.Entry(root, width=50)
     user_input.pack(pady=20)
-    user_input.bind('<KeyRelease>', partial(on_key_release, text_widget=text_widget, exercise=exercise, tracker=tracker_2, curr_line=current_line))
+    user_input.bind('<KeyRelease>', partial(on_key_release, text_widget=text_widget, exercise=exercise, tracker=tracker))
     root.mainloop()
